@@ -39,6 +39,16 @@ Every command accepts:
 `--force` is parsed now and will control regeneration when the processing stages
 are added in later milestones.
 
+## Test data
+
+The `testdata` directory contains a small manifest covering default fields and
+the future-facing animation schema:
+
+```bash
+python -m assetpipe source testdata/assets.jsonl --config testdata/config.yaml
+python -m assetpipe build testdata/sources --config testdata/config.yaml
+```
+
 ## Docker
 
 Build the single CUDA image:

@@ -1,0 +1,17 @@
+source: {}
+trellis: {}
+blender: {}
+pixel: {}
+
+paths:
+  workspace: testdata/workspace
+  specs: testdata/specs
+  sources: testdata/sources
+  meshes: testdata/meshes
+  renders: testdata/renders
+  sprites: testdata/sprites
+  cache: testdata/cache
+  models: testdata/models
+  errors: testdata/errors
+
+runtime: {}
