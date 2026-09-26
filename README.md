@@ -4,10 +4,11 @@ A containerized batch CLI for building consistent isometric pixel-art assets. Th
 pipeline uses JSONL manifests, YAML configuration, and the filesystem as its
 processing state.
 
-This repository currently implements **Milestone 1 only**: project setup, CLI
-parsing, configuration loading, manifest loading, source discovery, and workspace
-directory creation. The generation and rendering stages are intentionally not yet
-implemented.
+This repository currently implements **Milestones 1 and 2**: project setup, CLI
+parsing, configuration loading, manifest loading, source discovery, workspace
+directory creation, and fixed four-view Blender rendering. Source generation,
+TRELLIS conversion, pixel conversion, and full orchestration are intentionally not
+yet implemented.
 
 ## Manifest format
 
@@ -36,8 +37,25 @@ Every command accepts:
 --force
 ```
 
-`--force` is parsed now and will control regeneration when the processing stages
-are added in later milestones.
+`--force` is parsed now. The Blender stage already honors it, and later
+orchestration milestones will pass it through from the CLI.
+
+## Blender stage
+
+The Blender stage renders every GLB in a mesh directory using the camera and view
+settings from `config.yaml`:
+
+```python
+from assetpipe.blender_stage import render_meshes
+from assetpipe.config import load_config
+
+config = load_config("config.yaml")
+render_meshes(config["paths"]["meshes"], config)
+```
+
+Each mesh produces `ne.png`, `nw.png`, `sw.png`, and `se.png` under its asset
+directory in the configured render root. Existing views are preserved unless
+`force=True`.
 
 ## Test data
 

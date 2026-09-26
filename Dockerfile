@@ -31,6 +31,7 @@ COPY requirements.txt .
 RUN conda run -n trellis2 python -m pip install --no-cache-dir -r requirements.txt
 
 COPY assetpipe ./assetpipe
+COPY blender ./blender
 COPY config.yaml README.md ./
 
 ENV PATH=/opt/conda/envs/trellis2/bin:/opt/conda/bin:$PATH
