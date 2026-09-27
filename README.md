@@ -26,9 +26,9 @@ Each non-empty line in a manifest is one JSON asset specification:
 The CLI exposes the three final command names:
 
 ```bash
-python -m assetpipe source /workspace/specs/assets.jsonl
-python -m assetpipe build /workspace/sources
-python -m assetpipe all /workspace/specs/assets.jsonl
+python -m assetpipe source workspace/outputs/specs/assets.jsonl
+python -m assetpipe build workspace/outputs/sources
+python -m assetpipe all workspace/outputs/specs/assets.jsonl
 ```
 
 `source` generates source images, `build` converts existing source PNGs through
@@ -37,7 +37,7 @@ all three build phases, and `all` runs both pipelines.
 Every command accepts:
 
 ```bash
---config /workspace/config.yaml
+--config config.yaml
 --force
 ```
 
@@ -45,15 +45,21 @@ Every command accepts:
 
 By default, completed outputs are skipped. Set `runtime.skip_existing: false` or
 pass `--force` to regenerate them. With `runtime.stop_on_error: false`, one bad
-item is recorded under `/workspace/errors/<stage>.jsonl` and the batch continues.
+item is recorded under `workspace/outputs/errors/<stage>.jsonl` and the batch
+continues.
+
+`config.yaml` uses `${ASSETPIPE_DATA_ROOT}` for persistent paths. Without that
+environment variable, it resolves to a `workspace` directory beside the config
+file, which keeps local development independent of `/workspace`. Containers set
+`ASSETPIPE_DATA_ROOT=/workspace` automatically.
 
 ## Source stage
 
 Generate the configured FLUX source images from a JSONL manifest:
 
 ```bash
-python -m assetpipe source /workspace/specs/assets.jsonl \
-  --config /app/config.yaml
+python -m assetpipe source workspace/outputs/specs/assets.jsonl \
+  --config config.yaml
 ```
 
 The model is loaded once for the batch. Explicit asset seeds are honored; missing
@@ -67,13 +73,13 @@ Build every source PNG in a directory through TRELLIS, Blender, and pixel
 conversion:
 
 ```bash
-python -m assetpipe build /workspace/sources --config /app/config.yaml
+python -m assetpipe build workspace/outputs/sources --config config.yaml
 ```
 
 Generate sources from a manifest and then build them:
 
 ```bash
-python -m assetpipe all /workspace/specs/assets.jsonl --config /app/config.yaml
+python -m assetpipe all workspace/outputs/specs/assets.jsonl --config config.yaml
 ```
 
 GPU-heavy work is phase-batched across the complete input: all meshes are created
@@ -117,8 +123,8 @@ render_meshes(config["paths"]["meshes"], config)
 Model weights are downloaded through Hugging Face on first use and cached under
 the configured `HF_HOME`. TRELLIS v1 uses DINOv2 for image conditioning, so it
 does not require access approval for the gated DINOv3 repository used by
-TRELLIS.2. DINOv2 is cached under `/workspace/cache/torch`. Existing GLBs are
-preserved unless `force=True`.
+TRELLIS.2. In containers, downloaded Hugging Face and DINOv2 weights are stored
+under `/workspace/models`. Existing GLBs are preserved unless `force=True`.
 
 ## Pixel stage
 
@@ -160,50 +166,47 @@ docker build -t asset-pipeline .
 Run it with an NVIDIA GPU and a mounted workspace:
 
 ```bash
+mkdir -p workspace/outputs/specs
+# Copy assets.jsonl to workspace/outputs/specs/assets.jsonl first.
 docker run --rm --gpus all \
   -v "$PWD/workspace:/workspace" \
-  asset-pipeline source /workspace/specs/assets.jsonl \
-  --config /app/config.yaml
+  -e HF_TOKEN=### \
+  asset-pipeline all
 ```
 
-Model weights are not included in the image. Hugging Face downloads are cached
-under `/workspace/cache/huggingface`.
+At startup the image shallow-clones this repository into `/root/app`, initializes
+the persistent directories, and starts the selected pipeline command. Model
+weights are not included in the image.
 
 ## RunPod quick start
 
 ### Pull-and-run setup
 
-For the simplest interactive RunPod workflow, start a GPU Pod using an Ubuntu
-22.04 image. The setup installs TRELLIS v1's isolated CUDA 11.8 environment, so
-the container's displayed CUDA version can be newer. Use an NVIDIA GPU with at
-least 16 GB VRAM. Open its terminal and run:
+For a plain Ubuntu 22.04 GPU Pod rather than the prebuilt image, keep the checkout
+on the container filesystem and run the one-time setup there:
 
 ```bash
-cd /workspace
-git clone https://github.com/OtterNox/isometric-asset-pipeline.git
-cd isometric-asset-pipeline
+git clone --depth 1 https://github.com/OtterNox/isometric-asset-pipeline.git /root/app
+cd /root/app
 bash setup_runpod.sh
 ```
 
 The setup script installs Blender, Miniconda, original TRELLIS v1, and the
-pipeline's Python packages. It uses xFormers rather than FlashAttention and
-creates the standard input and output directories. The first setup takes a
-while because TRELLIS compiles CUDA extensions; subsequent runs reuse the
-environment and model cache stored under `/workspace`.
+pipeline's Python packages under `/opt/assetpipe`. It uses xFormers rather than
+FlashAttention and creates the persistent data directories under `/workspace`.
+It never changes ownership or permissions on the mounted volume.
 
-If this repository was already set up for TRELLIS.2, update it and run setup
-again. The new TRELLIS v1 environment is installed alongside the old one, and
-your existing source PNGs are kept:
+To update a plain Pod checkout, pull and rerun setup:
 
 ```bash
-cd /workspace/isometric-asset-pipeline
+cd /root/app
 git pull
 bash setup_runpod.sh
 bash run_pipeline.sh build
 ```
 
-After placing the inputs described below in `/workspace`, start a pipeline with
-one short command:
+After placing inputs under `/workspace/outputs`, start a pipeline with one short
+command:
 
 ```bash
 bash run_pipeline.sh source
@@ -217,29 +220,49 @@ command and the pipeline resumes from missing outputs.
 ### Prebuilt-image setup
 
 Build and publish the image to a container registry, then create a RunPod Pod
-from that image with an NVIDIA GPU that has at least 24 GB VRAM. Attach a
-persistent volume at `/workspace`; this preserves inputs, outputs, LoRAs, and
-downloaded Hugging Face model weights between Pods.
+from that image with an NVIDIA GPU that has at least 16 GB VRAM. Attach a
+persistent volume at `/workspace`. The container filesystem holds `/root/app`,
+`/opt/conda`, and `/opt/TRELLIS`; only persistent data uses `/workspace`:
+
+```text
+/workspace/models/
+/workspace/loras/
+/workspace/cache/
+/workspace/outputs/
+```
 
 Place these inputs on the volume before the run:
 
 ```text
-/workspace/specs/assets.jsonl
+/workspace/outputs/specs/assets.jsonl
 ```
 
 The source-style LoRA is optional while `source.lora.enabled` is `false`. The
-RunPod setup script downloads a default SDXL pixel-art LoRA to
-`/workspace/models/pixel-art.safetensors`. Replace that file if you prefer a
-different compatible style. Copy `config.yaml` to `/workspace/config.yaml`
-when you want to customize settings, then use one of these container commands:
+RunPod setup downloads the default pixel-art LoRA to
+`/workspace/loras/pixel-art.safetensors`. Replace it with another compatible
+LoRA if desired.
+
+Set these RunPod environment variables:
+
+```text
+HF_TOKEN=###
+ASSETPIPE_COMMAND=all
+```
+
+`HF_TOKEN` is needed for the gated FLUX source model. `ASSETPIPE_COMMAND`
+defaults to `all`; use `build` when source PNGs already exist. Optional overrides
+are `ASSETPIPE_REPO_URL`, `ASSETPIPE_GIT_REF`, `ASSETPIPE_DATA_ROOT`, and
+`ASSETPIPE_CONFIG`.
+
+The equivalent container commands are:
 
 ```bash
-all /workspace/specs/assets.jsonl --config /workspace/config.yaml
-build /workspace/sources --config /workspace/config.yaml
-source /workspace/specs/assets.jsonl --config /workspace/config.yaml
+all
+build
+source
 ```
 
 Use `all` for prompt-to-sprite, `build` for existing PNG inputs, or `source` for
-prompt-to-source-PNG only. For `build`, place PNGs directly in
-`/workspace/sources`; each filename stem becomes the asset ID. Add `--force` only
-when you intentionally want to overwrite completed results.
+prompt-to-source-PNG only. For `build`, place PNGs in
+`/workspace/outputs/sources`; each filename stem becomes the asset ID. Add
+`--force` only when you intentionally want to overwrite completed results.

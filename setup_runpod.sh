@@ -2,7 +2,8 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_ROOT="${ASSETPIPE_INSTALL_ROOT:-/workspace/.assetpipe}"
+INSTALL_ROOT="${ASSETPIPE_INSTALL_ROOT:-/opt/assetpipe}"
+DATA_ROOT="${ASSETPIPE_DATA_ROOT:-/workspace}"
 TRELLIS_DIR="$INSTALL_ROOT/TRELLIS"
 TRELLIS_COMMIT="442aa1e1afb9014e80681d3bf604e8d728a86ee7"
 CONDA_DIR="$INSTALL_ROOT/conda"
@@ -102,11 +103,12 @@ ATTN_BACKEND=xformers SPCONV_ALGO=native PYTHONPATH="$TRELLIS_DIR" \
 touch "$INSTALL_MARKER"
 
 mkdir -p \
-    /workspace/specs /workspace/sources /workspace/meshes \
-    /workspace/renders /workspace/sprites /workspace/cache \
-    /workspace/models /workspace/errors
+    "$DATA_ROOT/models" "$DATA_ROOT/loras" "$DATA_ROOT/cache" \
+    "$DATA_ROOT/outputs/specs" "$DATA_ROOT/outputs/sources" \
+    "$DATA_ROOT/outputs/meshes" "$DATA_ROOT/outputs/renders" \
+    "$DATA_ROOT/outputs/sprites" "$DATA_ROOT/outputs/errors"
 
-PIXEL_LORA="/workspace/models/pixel-art.safetensors"
+PIXEL_LORA="$DATA_ROOT/loras/pixel-art.safetensors"
 PIXEL_LORA_SHA256="4234637cb80c998f41e348e6a6cb6bc20d8d038b2b0f256b6129b3b5e353eef7"
 if [ ! -f "$PIXEL_LORA" ]; then
     echo "[setup] Downloading the default SDXL pixel-art LoRA..."
@@ -123,6 +125,6 @@ conda run -n "$ENV_NAME" python -m pip cache purge || true
 
 echo
 echo "Setup complete."
-echo "Next: put your inputs in /workspace, then run:"
+echo "Next: put your inputs under $DATA_ROOT/outputs, then run:"
 echo "  cd $REPO_DIR"
 echo "  bash run_pipeline.sh all"

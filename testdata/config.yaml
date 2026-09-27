@@ -50,6 +50,7 @@ pixel:
 
 paths:
   workspace: testdata/workspace
+  outputs: testdata/outputs
   specs: testdata/specs
   sources: testdata/sources
   meshes: testdata/meshes
@@ -57,6 +58,7 @@ paths:
   sprites: testdata/sprites
   cache: testdata/cache
   models: testdata/models
+  loras: testdata/loras
   errors: testdata/errors
 
 runtime:

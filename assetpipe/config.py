@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +8,7 @@ import yaml
 REQUIRED_SECTIONS = ("source", "trellis", "blender", "pixel", "paths", "runtime")
 REQUIRED_PATHS = (
     "workspace",
+    "outputs",
     "specs",
     "sources",
     "meshes",
@@ -14,8 +16,20 @@ REQUIRED_PATHS = (
     "sprites",
     "cache",
     "models",
+    "loras",
     "errors",
 )
+DATA_ROOT_TOKEN = "${ASSETPIPE_DATA_ROOT}"
+
+
+def _expand_data_root(value: Any, data_root: str) -> Any:
+    if isinstance(value, dict):
+        return {key: _expand_data_root(item, data_root) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_expand_data_root(item, data_root) for item in value]
+    if isinstance(value, str):
+        return value.replace(DATA_ROOT_TOKEN, data_root)
+    return value
 
 
 def load_config(path: str) -> dict[str, Any]:
@@ -28,6 +42,11 @@ def load_config(path: str) -> dict[str, Any]:
 
     if not isinstance(config, dict):
         raise ValueError("Config root must be a YAML mapping")
+
+    data_root = os.environ.get("ASSETPIPE_DATA_ROOT")
+    if not data_root:
+        data_root = str((config_path.resolve().parent / "workspace").resolve())
+    config = _expand_data_root(config, data_root)
 
     missing_sections = [key for key in REQUIRED_SECTIONS if key not in config]
     if missing_sections:

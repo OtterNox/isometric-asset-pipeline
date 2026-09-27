@@ -91,6 +91,7 @@ def _config(root: Path) -> dict:
         name: str(root / name)
         for name in (
             "workspace",
+            "outputs",
             "specs",
             "sources",
             "meshes",
@@ -98,6 +99,7 @@ def _config(root: Path) -> dict:
             "sprites",
             "cache",
             "models",
+            "loras",
             "errors",
         )
     }

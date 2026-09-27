@@ -46,19 +46,25 @@ RUN git clone https://github.com/microsoft/TRELLIS.git /opt/TRELLIS \
     && rm -rf /tmp/extensions \
     && conda clean --all -y
 
-WORKDIR /app
-COPY requirements.txt .
-RUN conda run -n trellis python -m pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt /tmp/assetpipe-requirements.txt
+RUN conda run -n trellis python -m pip install --no-cache-dir \
+      -r /tmp/assetpipe-requirements.txt \
+    && rm /tmp/assetpipe-requirements.txt
 
-COPY assetpipe ./assetpipe
-COPY blender ./blender
-COPY config.yaml README.md ./
+COPY container_entrypoint.sh /usr/local/bin/assetpipe-entrypoint.sh
 
 ENV PATH=/opt/conda/envs/trellis/bin:/opt/conda/bin:$PATH
-ENV PYTHONPATH=/opt/TRELLIS:/app
-ENV HF_HOME=/workspace/cache/huggingface
-ENV TORCH_HOME=/workspace/cache/torch
+ENV ASSETPIPE_APP_DIR=/root/app
+ENV ASSETPIPE_DATA_ROOT=/workspace
+ENV ASSETPIPE_INSTALL_ROOT=/opt
+ENV ASSETPIPE_REPO_URL=https://github.com/OtterNox/isometric-asset-pipeline.git
+ENV ASSETPIPE_GIT_REF=main
+ENV PYTHONPATH=/opt/TRELLIS:/root/app
+ENV HF_HOME=/workspace/models/huggingface
+ENV TORCH_HOME=/workspace/models/torch
+ENV XDG_CACHE_HOME=/workspace/cache
 ENV ATTN_BACKEND=xformers
 ENV SPCONV_ALGO=native
 
-ENTRYPOINT ["python", "-m", "assetpipe"]
+WORKDIR /root
+ENTRYPOINT ["bash", "/usr/local/bin/assetpipe-entrypoint.sh"]

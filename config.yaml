@@ -15,7 +15,7 @@ source:
 
   lora:
     enabled: false
-    path: /workspace/models/source-style.safetensors
+    path: ${ASSETPIPE_DATA_ROOT}/loras/source-style.safetensors
     weight: 0.8
 
 trellis:
@@ -54,7 +54,7 @@ pixel:
     distorted geometry
 
   lora:
-    path: /workspace/models/pixel-art.safetensors
+    path: ${ASSETPIPE_DATA_ROOT}/loras/pixel-art.safetensors
     weight: 0.85
 
   denoise: 0.25
@@ -64,15 +64,17 @@ pixel:
   final_size: 128
 
 paths:
-  workspace: /workspace
-  specs: /workspace/specs
-  sources: /workspace/sources
-  meshes: /workspace/meshes
-  renders: /workspace/renders
-  sprites: /workspace/sprites
-  cache: /workspace/cache
-  models: /workspace/models
-  errors: /workspace/errors
+  workspace: ${ASSETPIPE_DATA_ROOT}
+  outputs: ${ASSETPIPE_DATA_ROOT}/outputs
+  specs: ${ASSETPIPE_DATA_ROOT}/outputs/specs
+  sources: ${ASSETPIPE_DATA_ROOT}/outputs/sources
+  meshes: ${ASSETPIPE_DATA_ROOT}/outputs/meshes
+  renders: ${ASSETPIPE_DATA_ROOT}/outputs/renders
+  sprites: ${ASSETPIPE_DATA_ROOT}/outputs/sprites
+  cache: ${ASSETPIPE_DATA_ROOT}/cache
+  models: ${ASSETPIPE_DATA_ROOT}/models
+  loras: ${ASSETPIPE_DATA_ROOT}/loras
+  errors: ${ASSETPIPE_DATA_ROOT}/outputs/errors
 
 runtime:
   gpu_hourly_cost: 0.49
