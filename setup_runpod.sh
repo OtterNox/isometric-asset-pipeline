@@ -100,6 +100,10 @@ if [ ! -f "$PIXEL_LORA" ]; then
     mv "$PIXEL_LORA.download" "$PIXEL_LORA"
 fi
 
+echo "[setup] Removing installer caches to preserve workspace space..."
+"$CONDA_DIR/bin/conda" clean --all -y
+conda run -n trellis2 python -m pip cache purge || true
+
 echo
 echo "Setup complete."
 echo "Next: put your inputs in /workspace, then run:"
