@@ -12,17 +12,6 @@ if ! command -v nvidia-smi >/dev/null 2>&1; then
     exit 1
 fi
 
-if ! command -v nvcc >/dev/null 2>&1; then
-    echo "The CUDA compiler (nvcc) is missing. Use a RunPod image with CUDA 12.4 development tools."
-    exit 1
-fi
-
-if ! nvcc --version | grep -q "release 12.4"; then
-    echo "CUDA 12.4 is required by the pinned TRELLIS environment."
-    echo "Choose a RunPod image whose CUDA version is 12.4, then try again."
-    exit 1
-fi
-
 if [ "$(id -u)" -eq 0 ]; then
     SUDO=""
 elif command -v sudo >/dev/null 2>&1; then
@@ -49,8 +38,6 @@ if [ ! -x "$CONDA_DIR/bin/conda" ]; then
 fi
 
 source "$CONDA_DIR/etc/profile.d/conda.sh"
-NVCC_PATH="$(readlink -f "$(command -v nvcc)")"
-export CUDA_HOME="${CUDA_HOME:-$(dirname "$(dirname "$NVCC_PATH")")}"
 
 if [ ! -d "$TRELLIS_DIR/.git" ]; then
     echo "[setup] Downloading TRELLIS.2..."
@@ -64,15 +51,24 @@ git submodule update --init --recursive
 
 INSTALL_MARKER="$TRELLIS_DIR/.assetpipe-installed-$TRELLIS_COMMIT"
 if [ ! -f "$INSTALL_MARKER" ]; then
-    echo "[setup] Compiling TRELLIS dependencies. This is the long step."
-    if conda env list | awk '{print $1}' | grep -qx trellis2; then
-        conda activate trellis2
-        . ./setup.sh --basic --flash-attn --nvdiffrast --nvdiffrec \
-            --cumesh --o-voxel --flexgemm
-    else
-        . ./setup.sh --new-env --basic --flash-attn --nvdiffrast --nvdiffrec \
-            --cumesh --o-voxel --flexgemm
+    if ! conda env list | awk '{print $1}' | grep -qx trellis2; then
+        echo "[setup] Creating the TRELLIS Python environment..."
+        conda create -y -n trellis2 python=3.10
     fi
+
+    conda activate trellis2
+    echo "[setup] Installing an isolated CUDA 12.4 toolkit..."
+    conda install -y -c nvidia/label/cuda-12.4.0 cuda
+    export CUDA_HOME="$CONDA_PREFIX"
+    export PATH="$CUDA_HOME/bin:$PATH"
+
+    echo "[setup] Installing CUDA 12.4 PyTorch..."
+    python -m pip install torch==2.6.0 torchvision==0.21.0 \
+        --index-url https://download.pytorch.org/whl/cu124
+
+    echo "[setup] Compiling TRELLIS dependencies. This is the long step."
+    . ./setup.sh --basic --flash-attn --nvdiffrast --nvdiffrec \
+        --cumesh --o-voxel --flexgemm
     touch "$INSTALL_MARKER"
 fi
 

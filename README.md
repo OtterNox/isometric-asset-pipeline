@@ -171,7 +171,8 @@ under `/workspace/cache/huggingface`.
 ### Pull-and-run setup
 
 For the simplest interactive RunPod workflow, start a GPU Pod using an Ubuntu
-22.04 image with CUDA 12.4 development tools. Open its terminal and run:
+22.04 PyTorch image. The setup installs its own isolated CUDA 12.4 toolkit, so
+the container's displayed CUDA version can be newer. Open its terminal and run:
 
 ```bash
 cd /workspace
