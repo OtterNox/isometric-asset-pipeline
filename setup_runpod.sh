@@ -68,8 +68,13 @@ if [ ! -f "$INSTALL_MARKER" ]; then
     python -m pip install torch==2.6.0 torchvision==0.21.0 \
         --index-url https://download.pytorch.org/whl/cu124
 
+    echo "[setup] Compiling FlashAttention..."
+    python -m pip install --upgrade setuptools wheel packaging ninja
+    MAX_JOBS="${MAX_JOBS:-4}" python -m pip install \
+        flash-attn==2.7.3 --no-build-isolation
+
     echo "[setup] Compiling TRELLIS dependencies. This is the long step."
-    . ./setup.sh --basic --flash-attn --nvdiffrast --nvdiffrec \
+    . ./setup.sh --basic --nvdiffrast --nvdiffrec \
         --cumesh --o-voxel --flexgemm
     touch "$INSTALL_MARKER"
 fi
