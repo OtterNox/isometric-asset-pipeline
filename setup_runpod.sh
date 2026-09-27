@@ -53,12 +53,14 @@ INSTALL_MARKER="$TRELLIS_DIR/.assetpipe-installed-$TRELLIS_COMMIT"
 if [ ! -f "$INSTALL_MARKER" ]; then
     if ! conda env list | awk '{print $1}' | grep -qx trellis2; then
         echo "[setup] Creating the TRELLIS Python environment..."
-        conda create -y -n trellis2 python=3.10
+        conda create -y --override-channels -c conda-forge \
+            -n trellis2 python=3.10 pip
     fi
 
     conda activate trellis2
     echo "[setup] Installing an isolated CUDA 12.4 toolkit..."
-    conda install -y -c nvidia/label/cuda-12.4.0 cuda
+    conda install -y --override-channels \
+        -c nvidia/label/cuda-12.4.0 -c conda-forge cuda
     export CUDA_HOME="$CONDA_PREFIX"
     export PATH="$CUDA_HOME/bin:$PATH"
 
