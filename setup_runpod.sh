@@ -26,7 +26,7 @@ echo "[setup] Installing Blender and system build tools..."
 $SUDO apt-get update
 $SUDO apt-get install -y --no-install-recommends \
     blender build-essential ca-certificates curl git libgl1 libglib2.0-0 \
-    libjpeg-dev sudo
+    libegl1 libjpeg-dev sudo
 
 mkdir -p "$INSTALL_ROOT"
 
@@ -50,7 +50,7 @@ git fetch --all --tags
 git checkout "$TRELLIS_COMMIT"
 git submodule update --init --recursive
 
-INSTALL_MARKER="$TRELLIS_DIR/.assetpipe-installed-$TRELLIS_COMMIT"
+INSTALL_MARKER="$TRELLIS_DIR/.assetpipe-installed-$TRELLIS_COMMIT-v2"
 if [ ! -f "$INSTALL_MARKER" ]; then
     if ! conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
         echo "[setup] Creating the TRELLIS Python environment..."
@@ -73,14 +73,17 @@ if [ ! -f "$INSTALL_MARKER" ]; then
     echo "[setup] Installing build tools..."
     python -m pip install --upgrade setuptools wheel packaging ninja
 
+    python -c \
+        "import torch; assert torch.version.cuda == '11.8', f'Expected CUDA 11.8 PyTorch, got {torch.__version__} / {torch.version.cuda}'"
+
     echo "[setup] Installing TRELLIS v1 dependencies. This is the long step."
     rm -rf /tmp/extensions
     export PIP_NO_BUILD_ISOLATION=1
+    sed -i 's/^PLATFORM=.*/PLATFORM=cuda/' setup.sh
     . ./setup.sh --basic --xformers --diffoctreerast \
         --spconv --mipgaussian --kaolin --nvdiffrast
     unset PIP_NO_BUILD_ISOLATION
     rm -rf /tmp/extensions
-    touch "$INSTALL_MARKER"
 fi
 
 echo "[setup] Installing the asset pipeline..."
@@ -90,6 +93,7 @@ echo "[setup] Verifying TRELLIS v1 and GPU access..."
 ATTN_BACKEND=xformers SPCONV_ALGO=native PYTHONPATH="$TRELLIS_DIR" \
     conda run -n "$ENV_NAME" python -c \
     "import torch; from trellis.pipelines import TrellisImageTo3DPipeline; assert torch.cuda.is_available(), 'PyTorch cannot see the RunPod GPU'; print('TRELLIS v1 environment OK:', torch.__version__, 'CUDA', torch.version.cuda)"
+touch "$INSTALL_MARKER"
 
 mkdir -p \
     /workspace/specs /workspace/sources /workspace/meshes \
