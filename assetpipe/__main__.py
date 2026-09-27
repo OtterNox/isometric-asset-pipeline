@@ -3,8 +3,10 @@ import logging
 import os
 from collections.abc import Sequence
 
+from .build import build_assets
 from .config import ensure_dirs, load_config
-from .manifest import discover_sources, load_specs
+from .manifest import load_specs
+from .source import generate_sources
 
 
 LOGGER = logging.getLogger(__name__)
@@ -51,12 +53,15 @@ def main(argv: Sequence[str] | None = None) -> None:
     config = load_config(args.config)
     ensure_dirs(config)
 
-    if args.command in {"source", "all"}:
+    if args.command == "source":
         specs = load_specs(args.input)
-        LOGGER.info("[%s] validated %d asset spec(s)", args.command, len(specs))
+        generate_sources(specs, config, args.force)
     elif args.command == "build":
-        sources = discover_sources(args.input)
-        LOGGER.info("[build] discovered %d source PNG(s)", len(sources))
+        build_assets(args.input, config, args.force)
+    elif args.command == "all":
+        specs = load_specs(args.input)
+        generate_sources(specs, config, args.force)
+        build_assets(config["paths"]["sources"], config, args.force)
 
 
 if __name__ == "__main__":

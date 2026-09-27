@@ -43,6 +43,16 @@ blender:
 pixel:
   model: stabilityai/stable-diffusion-xl-base-1.0
   controlnet: diffusers/controlnet-canny-sdxl-1.0
+  prompt: >
+    pixel art game sprite,
+    crisp edges,
+    limited color palette,
+    clean readable silhouette
+  negative_prompt: >
+    blurry,
+    photorealistic,
+    smooth gradients,
+    distorted geometry
 
   lora:
     path: /workspace/models/pixel-art.safetensors

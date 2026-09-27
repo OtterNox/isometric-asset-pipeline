@@ -5,11 +5,14 @@ ARG TRELLIS_COMMIT=75fbf0183001ed9876c8dbb35de6b68552ee08bd
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     blender \
+    build-essential \
     ca-certificates \
     curl \
     git \
     libgl1 \
     libglib2.0-0 \
+    libjpeg-dev \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL -o /tmp/miniconda.sh \
@@ -24,7 +27,11 @@ RUN git clone https://github.com/microsoft/TRELLIS.2.git /opt/TRELLIS.2 \
     && cd /opt/TRELLIS.2 \
     && git checkout "$TRELLIS_COMMIT" \
     && git submodule update --init --recursive \
-    && bash -lc '. /opt/TRELLIS.2/setup.sh --new-env --basic --flash-attn --nvdiffrast --nvdiffrec --cumesh --o-voxel --flexgemm'
+    && mkdir -p /tmp/build-tools \
+    && printf '#!/bin/sh\nexit 0\n' > /tmp/build-tools/nvidia-smi \
+    && chmod +x /tmp/build-tools/nvidia-smi \
+    && bash -c 'source /opt/conda/etc/profile.d/conda.sh; export PATH=/tmp/build-tools:$PATH; cd /opt/TRELLIS.2; . ./setup.sh --new-env --basic --flash-attn --nvdiffrast --nvdiffrec --cumesh --o-voxel --flexgemm' \
+    && rm -rf /tmp/build-tools /tmp/extensions
 
 WORKDIR /app
 COPY requirements.txt .

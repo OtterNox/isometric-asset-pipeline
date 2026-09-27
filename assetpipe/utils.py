@@ -1,8 +1,10 @@
+import gc
 import json
 from pathlib import Path
 
 
 def clear_cuda() -> None:
+    gc.collect()
     try:
         import torch
     except ImportError:

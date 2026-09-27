@@ -175,8 +175,12 @@ def render_views(
             )
         )
         point_at(camera, Vector((0.0, 0.0, 0.0)))
-        bpy.context.scene.render.filepath = str(output_path)
+        temporary_path = output_dir / f"{name}.tmp.png"
+        bpy.context.scene.render.filepath = str(temporary_path)
         bpy.ops.render.render(write_still=True)
+        if not temporary_path.is_file():
+            raise RuntimeError(f"Blender did not create output: {output_path}")
+        temporary_path.replace(output_path)
         print(f"[blender] {name} completed")
 
 
