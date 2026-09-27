@@ -50,7 +50,7 @@ git fetch --all --tags
 git checkout "$TRELLIS_COMMIT"
 git submodule update --init --recursive
 
-INSTALL_MARKER="$TRELLIS_DIR/.assetpipe-installed-$TRELLIS_COMMIT-v2"
+INSTALL_MARKER="$TRELLIS_DIR/.assetpipe-installed-$TRELLIS_COMMIT-v3"
 if [ ! -f "$INSTALL_MARKER" ]; then
     if ! conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
         echo "[setup] Creating the TRELLIS Python environment..."
@@ -66,9 +66,9 @@ if [ ! -f "$INSTALL_MARKER" ]; then
     export PATH="$CUDA_HOME/bin:$PATH"
 
     echo "[setup] Installing the official TRELLIS v1 PyTorch stack..."
-    conda install -y --override-channels \
-        -c pytorch -c nvidia -c conda-forge \
-        pytorch==2.4.0 torchvision==0.19.0 pytorch-cuda=11.8
+    python -m pip install --no-cache-dir --force-reinstall \
+        torch==2.4.0 torchvision==0.19.0 \
+        --index-url https://download.pytorch.org/whl/cu118
 
     echo "[setup] Installing build tools..."
     python -m pip install --upgrade setuptools wheel packaging ninja
@@ -76,12 +76,18 @@ if [ ! -f "$INSTALL_MARKER" ]; then
     python -c \
         "import torch; assert torch.version.cuda == '11.8', f'Expected CUDA 11.8 PyTorch, got {torch.__version__} / {torch.version.cuda}'"
 
+    echo "[setup] Installing the prebuilt xFormers and Kaolin packages..."
+    python -m pip install xformers==0.0.27.post2 \
+        --index-url https://download.pytorch.org/whl/cu118
+    python -m pip install kaolin \
+        -f https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-2.4.0_cu121.html
+
     echo "[setup] Installing TRELLIS v1 dependencies. This is the long step."
     rm -rf /tmp/extensions
     export PIP_NO_BUILD_ISOLATION=1
     sed -i 's/^PLATFORM=.*/PLATFORM=cuda/' setup.sh
-    . ./setup.sh --basic --xformers --diffoctreerast \
-        --spconv --mipgaussian --kaolin --nvdiffrast
+    . ./setup.sh --basic --diffoctreerast \
+        --spconv --mipgaussian --nvdiffrast
     unset PIP_NO_BUILD_ISOLATION
     rm -rf /tmp/extensions
 fi

@@ -28,16 +28,21 @@ RUN conda create -y --override-channels -c conda-forge \
       -n trellis python=3.10 pip \
     && conda install -y --override-channels -n trellis \
       -c nvidia/label/cuda-11.8.0 -c conda-forge cuda \
-    && conda install -y --override-channels -n trellis \
-      -c pytorch -c nvidia -c conda-forge \
-      pytorch==2.4.0 torchvision==0.19.0 pytorch-cuda=11.8
+    && conda run -n trellis python -m pip install --no-cache-dir \
+      torch==2.4.0 torchvision==0.19.0 \
+      --index-url https://download.pytorch.org/whl/cu118 \
+    && conda run -n trellis python -m pip install \
+      xformers==0.0.27.post2 \
+      --index-url https://download.pytorch.org/whl/cu118 \
+    && conda run -n trellis python -m pip install kaolin \
+      -f https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-2.4.0_cu121.html
 
 RUN git clone https://github.com/microsoft/TRELLIS.git /opt/TRELLIS \
     && cd /opt/TRELLIS \
     && git checkout "$TRELLIS_COMMIT" \
     && git submodule update --init --recursive \
     && sed -i '73s/.*/PLATFORM=cuda/' setup.sh \
-    && bash -c 'source /opt/conda/etc/profile.d/conda.sh; conda activate trellis; export CUDA_HOME="$CONDA_PREFIX"; export PATH="$CUDA_HOME/bin:$PATH"; export PIP_NO_BUILD_ISOLATION=1; python -m pip install --upgrade setuptools wheel packaging ninja; cd /opt/TRELLIS; rm -rf /tmp/extensions; . ./setup.sh --basic --xformers --diffoctreerast --spconv --mipgaussian --kaolin --nvdiffrast' \
+    && bash -c 'source /opt/conda/etc/profile.d/conda.sh; conda activate trellis; export CUDA_HOME="$CONDA_PREFIX"; export PATH="$CUDA_HOME/bin:$PATH"; export PIP_NO_BUILD_ISOLATION=1; python -m pip install --upgrade setuptools wheel packaging ninja; cd /opt/TRELLIS; rm -rf /tmp/extensions; . ./setup.sh --basic --diffoctreerast --spconv --mipgaussian --nvdiffrast' \
     && rm -rf /tmp/extensions \
     && conda clean --all -y
 
