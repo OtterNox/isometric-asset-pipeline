@@ -74,8 +74,10 @@ if [ ! -f "$INSTALL_MARKER" ]; then
         flash-attn==2.7.3 --no-build-isolation
 
     echo "[setup] Compiling TRELLIS dependencies. This is the long step."
+    rm -rf /tmp/extensions
     . ./setup.sh --basic --nvdiffrast --nvdiffrec \
         --cumesh --o-voxel --flexgemm
+    rm -rf /tmp/extensions
     touch "$INSTALL_MARKER"
 fi
 
