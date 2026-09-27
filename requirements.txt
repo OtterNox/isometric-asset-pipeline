@@ -5,5 +5,7 @@ hf_transfer>=0.1,<1
 numpy>=1.26,<3
 opencv-python-headless>=4.10,<5
 peft>=0.13,<1
+protobuf>=4,<7
 safetensors>=0.4,<1
+sentencepiece>=0.2,<1
 transformers>=4.46,<5
