@@ -1,2 +1,10 @@
 {"id":"chair_001","prompt":"A chunky cozy fantasy oak chair with rounded legs and a moss green cushion","seed":1001}
 {"id":"stove_001","prompt":"A whimsical brass steampunk stove with pipes and round gauges","seed":1002,"type":"prop","animation":{"enabled":false}}
+{"id":"chest_001","prompt":"A sturdy fantasy treasure chest made of dark oak with thick brass bands and a large central lock","seed":1003,"type":"prop"}
+{"id":"lantern_001","prompt":"A squat medieval camping lantern with a bronze frame, warm glowing glass, and a broad stable base","seed":1004,"type":"prop"}
+{"id":"barrel_001","prompt":"A chunky wooden storage barrel with dark iron hoops, a closed lid, and slightly uneven oak planks","seed":1005,"type":"prop"}
+{"id":"anvil_001","prompt":"A compact blacksmith anvil with a broad horn, heavy iron body, and thick wooden stump base","seed":1006,"type":"prop"}
+{"id":"mushroom_001","prompt":"A large whimsical forest mushroom with a thick cream stem and a rounded red cap covered in pale spots","seed":1007,"type":"prop"}
+{"id":"crystal_001","prompt":"A cluster of chunky glowing blue magic crystals growing from a rough dark stone base","seed":1008,"type":"prop"}
+{"id":"cauldron_001","prompt":"A round cast iron witch cauldron with three short feet, two side handles, and bright green potion inside","seed":1009,"type":"prop"}
+{"id":"mailbox_001","prompt":"A charming rural wooden mailbox on a short sturdy post with a red flag and small metal hinges","seed":1010,"type":"prop"}
