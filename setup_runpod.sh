@@ -3,9 +3,10 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="${ASSETPIPE_INSTALL_ROOT:-/workspace/.assetpipe}"
-TRELLIS_DIR="$INSTALL_ROOT/TRELLIS.2"
-TRELLIS_COMMIT="75fbf0183001ed9876c8dbb35de6b68552ee08bd"
+TRELLIS_DIR="$INSTALL_ROOT/TRELLIS"
+TRELLIS_COMMIT="442aa1e1afb9014e80681d3bf604e8d728a86ee7"
 CONDA_DIR="$INSTALL_ROOT/conda"
+ENV_NAME="trellis"
 
 if ! command -v nvidia-smi >/dev/null 2>&1; then
     echo "No NVIDIA GPU is visible. Start this script inside a GPU RunPod."
@@ -40,8 +41,8 @@ fi
 source "$CONDA_DIR/etc/profile.d/conda.sh"
 
 if [ ! -d "$TRELLIS_DIR/.git" ]; then
-    echo "[setup] Downloading TRELLIS.2..."
-    git clone https://github.com/microsoft/TRELLIS.2.git "$TRELLIS_DIR"
+    echo "[setup] Downloading TRELLIS v1..."
+    git clone https://github.com/microsoft/TRELLIS.git "$TRELLIS_DIR"
 fi
 
 cd "$TRELLIS_DIR"
@@ -51,38 +52,44 @@ git submodule update --init --recursive
 
 INSTALL_MARKER="$TRELLIS_DIR/.assetpipe-installed-$TRELLIS_COMMIT"
 if [ ! -f "$INSTALL_MARKER" ]; then
-    if ! conda env list | awk '{print $1}' | grep -qx trellis2; then
+    if ! conda env list | awk '{print $1}' | grep -qx "$ENV_NAME"; then
         echo "[setup] Creating the TRELLIS Python environment..."
         conda create -y --override-channels -c conda-forge \
-            -n trellis2 python=3.10 pip
+            -n "$ENV_NAME" python=3.10 pip
     fi
 
-    conda activate trellis2
-    echo "[setup] Installing an isolated CUDA 12.4 toolkit..."
+    conda activate "$ENV_NAME"
+    echo "[setup] Installing the CUDA 11.8 toolkit used by TRELLIS v1..."
     conda install -y --override-channels \
-        -c nvidia/label/cuda-12.4.0 -c conda-forge cuda
+        -c nvidia/label/cuda-11.8.0 -c conda-forge cuda
     export CUDA_HOME="$CONDA_PREFIX"
     export PATH="$CUDA_HOME/bin:$PATH"
 
-    echo "[setup] Installing CUDA 12.4 PyTorch..."
-    python -m pip install torch==2.6.0 torchvision==0.21.0 \
-        --index-url https://download.pytorch.org/whl/cu124
+    echo "[setup] Installing the official TRELLIS v1 PyTorch stack..."
+    conda install -y --override-channels \
+        -c pytorch -c nvidia -c conda-forge \
+        pytorch==2.4.0 torchvision==0.19.0 pytorch-cuda=11.8
 
-    echo "[setup] Compiling FlashAttention..."
+    echo "[setup] Installing build tools..."
     python -m pip install --upgrade setuptools wheel packaging ninja
-    MAX_JOBS="${MAX_JOBS:-4}" python -m pip install \
-        flash-attn==2.7.3 --no-build-isolation
 
-    echo "[setup] Compiling TRELLIS dependencies. This is the long step."
+    echo "[setup] Installing TRELLIS v1 dependencies. This is the long step."
     rm -rf /tmp/extensions
-    . ./setup.sh --basic --nvdiffrast --nvdiffrec \
-        --cumesh --o-voxel --flexgemm
+    export PIP_NO_BUILD_ISOLATION=1
+    . ./setup.sh --basic --xformers --diffoctreerast \
+        --spconv --mipgaussian --kaolin --nvdiffrast
+    unset PIP_NO_BUILD_ISOLATION
     rm -rf /tmp/extensions
     touch "$INSTALL_MARKER"
 fi
 
 echo "[setup] Installing the asset pipeline..."
-conda run -n trellis2 python -m pip install --no-cache-dir -r "$REPO_DIR/requirements.txt"
+conda run -n "$ENV_NAME" python -m pip install --no-cache-dir -r "$REPO_DIR/requirements.txt"
+
+echo "[setup] Verifying TRELLIS v1 and GPU access..."
+ATTN_BACKEND=xformers SPCONV_ALGO=native PYTHONPATH="$TRELLIS_DIR" \
+    conda run -n "$ENV_NAME" python -c \
+    "import torch; from trellis.pipelines import TrellisImageTo3DPipeline; assert torch.cuda.is_available(), 'PyTorch cannot see the RunPod GPU'; print('TRELLIS v1 environment OK:', torch.__version__, 'CUDA', torch.version.cuda)"
 
 mkdir -p \
     /workspace/specs /workspace/sources /workspace/meshes \
@@ -102,7 +109,7 @@ fi
 
 echo "[setup] Removing installer caches to preserve workspace space..."
 "$CONDA_DIR/bin/conda" clean --all -y
-conda run -n trellis2 python -m pip cache purge || true
+conda run -n "$ENV_NAME" python -m pip cache purge || true
 
 echo
 echo "Setup complete."

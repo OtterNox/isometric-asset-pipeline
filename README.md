@@ -6,7 +6,7 @@ processing state.
 
 This repository implements **Milestones 1 through 8**: project setup,
 CLI parsing, configuration loading, manifest loading, FLUX source generation,
-PNG-to-GLB conversion with TRELLIS.2, fixed four-view Blender rendering, SDXL
+PNG-to-GLB conversion with TRELLIS v1, fixed four-view Blender rendering, SDXL
 ControlNet pixel conversion, build orchestration, and full pipeline orchestration.
 Each stage supports resumable execution, isolated failure reporting, summaries,
 and basic GPU cost estimates.
@@ -115,7 +115,10 @@ render_meshes(config["paths"]["meshes"], config)
 ```
 
 Model weights are downloaded through Hugging Face on first use and cached under
-the configured `HF_HOME`. Existing GLBs are preserved unless `force=True`.
+the configured `HF_HOME`. TRELLIS v1 uses DINOv2 for image conditioning, so it
+does not require access approval for the gated DINOv3 repository used by
+TRELLIS.2. DINOv2 is cached under `/workspace/cache/torch`. Existing GLBs are
+preserved unless `force=True`.
 
 ## Pixel stage
 
@@ -171,8 +174,9 @@ under `/workspace/cache/huggingface`.
 ### Pull-and-run setup
 
 For the simplest interactive RunPod workflow, start a GPU Pod using an Ubuntu
-22.04 PyTorch image. The setup installs its own isolated CUDA 12.4 toolkit, so
-the container's displayed CUDA version can be newer. Open its terminal and run:
+22.04 image. The setup installs TRELLIS v1's isolated CUDA 11.8 environment, so
+the container's displayed CUDA version can be newer. Use an NVIDIA GPU with at
+least 16 GB VRAM. Open its terminal and run:
 
 ```bash
 cd /workspace
@@ -181,10 +185,22 @@ cd isometric-asset-pipeline
 bash setup_runpod.sh
 ```
 
-The setup script installs Blender, Miniconda, TRELLIS.2, and the pipeline's
-Python packages. It also creates the standard input and output directories. The
-first setup takes a while because TRELLIS compiles CUDA extensions; subsequent
-runs reuse the environment and model cache stored under `/workspace`.
+The setup script installs Blender, Miniconda, original TRELLIS v1, and the
+pipeline's Python packages. It uses xFormers rather than FlashAttention and
+creates the standard input and output directories. The first setup takes a
+while because TRELLIS compiles CUDA extensions; subsequent runs reuse the
+environment and model cache stored under `/workspace`.
+
+If this repository was already set up for TRELLIS.2, update it and run setup
+again. The new TRELLIS v1 environment is installed alongside the old one, and
+your existing source PNGs are kept:
+
+```bash
+cd /workspace/isometric-asset-pipeline
+git pull
+bash setup_runpod.sh
+bash run_pipeline.sh build
+```
 
 After placing the inputs described below in `/workspace`, start a pipeline with
 one short command:

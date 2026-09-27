@@ -65,8 +65,8 @@ class _ImageModule:
 
 
 class _MeshPipeline:
-    def run(self, image, pipeline_type):
-        return [object()]
+    def run(self, image, seed):
+        return {"gaussian": [object()], "mesh": [object()]}
 
 
 class _Render:
@@ -116,10 +116,9 @@ def _config(root: Path) -> dict:
         },
         "trellis": {
             "model": "mesh-model",
-            "resolution": 512,
+            "seed": 1,
+            "simplify": 0.95,
             "texture_size": 8,
-            "decimation_target": 10,
-            "remesh": True,
         },
         "blender": {
             "executable": "blender",
@@ -198,7 +197,7 @@ class ReliabilityTests(unittest.TestCase):
             source = Path(config["paths"]["sources"]) / "good.png"
             source.write_bytes(b"png")
 
-            def export(mesh, path, trellis_config, o_voxel):
+            def export(outputs, path, trellis_config, postprocessing_utils):
                 path.write_bytes(b"glb")
 
             with (

@@ -17,11 +17,10 @@ source:
     path: testdata/models/source-style.safetensors
     weight: 0.8
 trellis:
-  model: microsoft/TRELLIS.2-4B
-  resolution: 512
+  model: microsoft/TRELLIS-image-large
+  seed: 1
+  simplify: 0.95
   texture_size: 1024
-  decimation_target: 200000
-  remesh: true
 
 blender:
   executable: blender

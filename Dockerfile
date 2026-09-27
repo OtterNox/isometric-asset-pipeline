@@ -1,7 +1,7 @@
 FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG TRELLIS_COMMIT=75fbf0183001ed9876c8dbb35de6b68552ee08bd
+ARG TRELLIS_COMMIT=442aa1e1afb9014e80681d3bf604e8d728a86ee7
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     blender \
@@ -21,28 +21,38 @@ RUN curl -fsSL -o /tmp/miniconda.sh \
     && rm /tmp/miniconda.sh
 
 ENV PATH=/opt/conda/bin:$PATH
-ENV CUDA_HOME=/usr/local/cuda-12.4
+ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"
 
-RUN git clone https://github.com/microsoft/TRELLIS.2.git /opt/TRELLIS.2 \
-    && cd /opt/TRELLIS.2 \
+RUN conda create -y --override-channels -c conda-forge \
+      -n trellis python=3.10 pip \
+    && conda install -y --override-channels -n trellis \
+      -c nvidia/label/cuda-11.8.0 -c conda-forge cuda \
+    && conda install -y --override-channels -n trellis \
+      -c pytorch -c nvidia -c conda-forge \
+      pytorch==2.4.0 torchvision==0.19.0 pytorch-cuda=11.8
+
+RUN git clone https://github.com/microsoft/TRELLIS.git /opt/TRELLIS \
+    && cd /opt/TRELLIS \
     && git checkout "$TRELLIS_COMMIT" \
     && git submodule update --init --recursive \
-    && mkdir -p /tmp/build-tools \
-    && printf '#!/bin/sh\nexit 0\n' > /tmp/build-tools/nvidia-smi \
-    && chmod +x /tmp/build-tools/nvidia-smi \
-    && bash -c 'source /opt/conda/etc/profile.d/conda.sh; export PATH=/tmp/build-tools:$PATH; cd /opt/TRELLIS.2; . ./setup.sh --new-env --basic --flash-attn --nvdiffrast --nvdiffrec --cumesh --o-voxel --flexgemm' \
-    && rm -rf /tmp/build-tools /tmp/extensions
+    && sed -i '73s/.*/PLATFORM=cuda/' setup.sh \
+    && bash -c 'source /opt/conda/etc/profile.d/conda.sh; conda activate trellis; export CUDA_HOME="$CONDA_PREFIX"; export PATH="$CUDA_HOME/bin:$PATH"; export PIP_NO_BUILD_ISOLATION=1; python -m pip install --upgrade setuptools wheel packaging ninja; cd /opt/TRELLIS; rm -rf /tmp/extensions; . ./setup.sh --basic --xformers --diffoctreerast --spconv --mipgaussian --kaolin --nvdiffrast' \
+    && rm -rf /tmp/extensions \
+    && conda clean --all -y
 
 WORKDIR /app
 COPY requirements.txt .
-RUN conda run -n trellis2 python -m pip install --no-cache-dir -r requirements.txt
+RUN conda run -n trellis python -m pip install --no-cache-dir -r requirements.txt
 
 COPY assetpipe ./assetpipe
 COPY blender ./blender
 COPY config.yaml README.md ./
 
-ENV PATH=/opt/conda/envs/trellis2/bin:/opt/conda/bin:$PATH
-ENV PYTHONPATH=/opt/TRELLIS.2:/app
+ENV PATH=/opt/conda/envs/trellis/bin:/opt/conda/bin:$PATH
+ENV PYTHONPATH=/opt/TRELLIS:/app
 ENV HF_HOME=/workspace/cache/huggingface
+ENV TORCH_HOME=/workspace/cache/torch
+ENV ATTN_BACKEND=xformers
+ENV SPCONV_ALGO=native
 
 ENTRYPOINT ["python", "-m", "assetpipe"]

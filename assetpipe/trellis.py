@@ -8,40 +8,31 @@ from .utils import append_error, asset_id_from_path, clear_cuda
 
 
 LOGGER = logging.getLogger(__name__)
-NVDIFFRAST_FACE_LIMIT = 16_777_216
 
 
 def _load_runtime(model_id: str):
     os.environ.setdefault("OPENCV_IO_ENABLE_OPENEXR", "1")
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+    os.environ.setdefault("ATTN_BACKEND", "xformers")
+    os.environ.setdefault("SPCONV_ALGO", "native")
 
-    import o_voxel
     from PIL import Image
-    from trellis2.pipelines import Trellis2ImageTo3DPipeline
+    from trellis.pipelines import TrellisImageTo3DPipeline
+    from trellis.utils import postprocessing_utils
 
-    pipeline = Trellis2ImageTo3DPipeline.from_pretrained(model_id)
+    pipeline = TrellisImageTo3DPipeline.from_pretrained(model_id)
     pipeline.cuda()
-    return pipeline, Image, o_voxel
+    return pipeline, Image, postprocessing_utils
 
 
-def _export_mesh(mesh, output_path: Path, trellis_config: dict, o_voxel) -> None:
-    mesh.simplify(NVDIFFRAST_FACE_LIMIT)
-    glb = o_voxel.postprocess.to_glb(
-        vertices=mesh.vertices,
-        faces=mesh.faces,
-        attr_volume=mesh.attrs,
-        coords=mesh.coords,
-        attr_layout=mesh.layout,
-        voxel_size=mesh.voxel_size,
-        aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
-        decimation_target=trellis_config["decimation_target"],
+def _export_mesh(outputs, output_path: Path, trellis_config: dict, postprocessing_utils) -> None:
+    glb = postprocessing_utils.to_glb(
+        outputs["gaussian"][0],
+        outputs["mesh"][0],
+        simplify=trellis_config["simplify"],
         texture_size=trellis_config["texture_size"],
-        remesh=trellis_config["remesh"],
-        remesh_band=1,
-        remesh_project=0,
-        verbose=True,
     )
-    glb.export(str(output_path), extension_webp=True)
+    glb.export(str(output_path))
 
 
 def generate_meshes(
@@ -100,7 +91,9 @@ def generate_meshes(
     LOGGER.info("[trellis] loading %s", trellis_config["model"])
     pipeline = None
     try:
-        pipeline, image_module, o_voxel = _load_runtime(trellis_config["model"])
+        pipeline, image_module, postprocessing_utils = _load_runtime(
+            trellis_config["model"]
+        )
     except Exception as exc:
         for _, _, asset_id in pending:
             append_error(
@@ -126,15 +119,20 @@ def generate_meshes(
         for source_path, output_path, asset_id in pending:
             started = time.perf_counter()
             temporary_path = output_path.with_suffix(".tmp.glb")
-            mesh = None
+            outputs = None
             try:
                 LOGGER.info("[trellis] %s generating", asset_id)
                 with image_module.open(source_path) as image:
-                    mesh = pipeline.run(
+                    outputs = pipeline.run(
                         image,
-                        pipeline_type=str(trellis_config["resolution"]),
-                    )[0]
-                _export_mesh(mesh, temporary_path, trellis_config, o_voxel)
+                        seed=trellis_config["seed"],
+                    )
+                _export_mesh(
+                    outputs,
+                    temporary_path,
+                    trellis_config,
+                    postprocessing_utils,
+                )
                 if not temporary_path.is_file():
                     raise RuntimeError(f"TRELLIS did not create output: {output_path}")
                 temporary_path.replace(output_path)
@@ -156,8 +154,8 @@ def generate_meshes(
                     fatal_error = exc
                     break
             finally:
-                if mesh is not None:
-                    del mesh
+                if outputs is not None:
+                    del outputs
     finally:
         del pipeline
         clear_cuda()

@@ -25,7 +25,7 @@ shift
 INPUT_PATH="${ASSETPIPE_INPUT:-$DEFAULT_INPUT}"
 CONFIG_PATH="${ASSETPIPE_CONFIG:-$REPO_DIR/config.yaml}"
 INSTALL_ROOT="${ASSETPIPE_INSTALL_ROOT:-/workspace/.assetpipe}"
-PYTHON_BIN="$INSTALL_ROOT/conda/envs/trellis2/bin/python"
+PYTHON_BIN="$INSTALL_ROOT/conda/envs/trellis/bin/python"
 
 if [ ! -x "$PYTHON_BIN" ]; then
     echo "Pipeline environment not found. Run: bash setup_runpod.sh"
@@ -42,10 +42,13 @@ if [ "$COMMAND" != "source" ] && [ ! -f /workspace/models/pixel-art.safetensors 
     echo "Meshes and renders can still be generated, but the pixel stage will record failures."
 fi
 
-export TRELLIS_DIR="${TRELLIS_DIR:-$INSTALL_ROOT/TRELLIS.2}"
+export TRELLIS_DIR="${TRELLIS_DIR:-$INSTALL_ROOT/TRELLIS}"
 cd "$REPO_DIR"
 export PYTHONPATH="$TRELLIS_DIR:${PYTHONPATH:-}"
 export HF_HOME="${HF_HOME:-/workspace/cache/huggingface}"
+export TORCH_HOME="${TORCH_HOME:-/workspace/cache/torch}"
+export ATTN_BACKEND="${ATTN_BACKEND:-xformers}"
+export SPCONV_ALGO="${SPCONV_ALGO:-native}"
 
 exec "$PYTHON_BIN" -m assetpipe "$COMMAND" "$INPUT_PATH" \
     --config "$CONFIG_PATH" "$@"
