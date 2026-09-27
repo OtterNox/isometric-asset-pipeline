@@ -82,6 +82,17 @@ mkdir -p \
     /workspace/renders /workspace/sprites /workspace/cache \
     /workspace/models /workspace/errors
 
+PIXEL_LORA="/workspace/models/pixel-art.safetensors"
+PIXEL_LORA_SHA256="4234637cb80c998f41e348e6a6cb6bc20d8d038b2b0f256b6129b3b5e353eef7"
+if [ ! -f "$PIXEL_LORA" ]; then
+    echo "[setup] Downloading the default SDXL pixel-art LoRA..."
+    curl -fL --retry 3 \
+        https://huggingface.co/nerijs/pixel-art-xl/resolve/main/pixel-art-xl.safetensors \
+        -o "$PIXEL_LORA.download"
+    echo "$PIXEL_LORA_SHA256  $PIXEL_LORA.download" | sha256sum -c -
+    mv "$PIXEL_LORA.download" "$PIXEL_LORA"
+fi
+
 echo
 echo "Setup complete."
 echo "Next: put your inputs in /workspace, then run:"

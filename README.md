@@ -209,12 +209,13 @@ Place these inputs on the volume before the run:
 
 ```text
 /workspace/specs/assets.jsonl
-/workspace/models/pixel-art.safetensors
 ```
 
 The source-style LoRA is optional while `source.lora.enabled` is `false`. The
-pixel-art LoRA is required. Copy `config.yaml` to `/workspace/config.yaml` when
-you want to customize settings, then use one of these container commands:
+RunPod setup script downloads a default SDXL pixel-art LoRA to
+`/workspace/models/pixel-art.safetensors`. Replace that file if you prefer a
+different compatible style. Copy `config.yaml` to `/workspace/config.yaml`
+when you want to customize settings, then use one of these container commands:
 
 ```bash
 all /workspace/specs/assets.jsonl --config /workspace/config.yaml
